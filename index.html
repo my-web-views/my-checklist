@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Arduino R3 HID Conversion Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+            -webkit-font-smoothing:antialiased;
+            -moz-osx-font-smoothing:grayscale;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 5px;
+            }
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+            line-height: 1.1;
+        }
+        
+        .header p {
+            opacity: 0.95;
+            font-size: 1.05rem;
+        }
+        
+        .progress-bar {
+            background: rgba(255,255,255,0.18);
+            height: 8px;
+            border-radius: 4px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: #4ade80;
+            height: 100%;
+            transition: width 0.25s ease;
+            border-radius: 4px;
+            width: 0%;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            padding: 18px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 10px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            text-align: center;
+            min-width: 90px;
+        }
+        
+        .stat-number {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .stat-label {
+            color: rgba(255,255,255,0.9);
+            font-size: 0.85rem;
+            margin-top: 5px;
+        }
+        
+        .content {
+            padding: 28px 36px;
+        }
+        
+        .method-selector {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+        }
+        
+        .method-card {
+            flex: 1;
+            min-width: 240px;
+            border: 3px solid #e2e8f0;
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 220px;
+        }
+        
+        .method-card:focus {
+            outline: 3px solid rgba(102,126,234,0.25);
+        }
+        
+        .method-card:hover {
+            border-color: #667eea;
+            transform: translateY(-6px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.18);
+        }
+        
+        .method-card.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102,126,234,0.06) 0%, rgba(118,75,162,0.04) 100%);
+            transform: translateY(-6px);
+            box-shadow: 0 12px 36px rgba(102, 126, 234, 0.18);
+        }
+        
+        .method-card h3 {
+            color: #1e293b;
+            font-size: 1.15rem;
+            margin-bottom: 10px;
+        }
+        
+        .method-card p {
+            color: #475569;
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+        }
+        
+        .method-card .difficulty {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .difficulty.easy {
+            background: #4ade80;
+            color: #06332a;
+        }
+        
+        .difficulty.medium {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .difficulty.hard {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .method-card ul {
+            margin-left: 18px;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        
+        .method-card li {
+            margin: 6px 0;
+        }
+        
+        .section {
+            margin-bottom: 28px;
+            border-left: 4px solid #667eea;
+            padding-left: 20px;
+            display: none;
+        }
+        
+        .section.active {
+            display: block;
+            animation: fadeIn 0.45s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .section h2 {
+            color: #0f172a;
+            font-size: 1.45rem;
+            margin-bottom: 14px;
+        }
+        
+        .checklist-item {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.22s ease;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        
+        .checklist-item:hover {
+            border-color: #667eea;
+            transform: translateX(4px);
+        }
+        
+        .checklist-item.completed {
+            background: #f0fdf4;
+            border-color: #4ade80;
+            transform: translateX(0);
+        }
+        
+        .item-content {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            width: 100%;
+        }
+        
+        .checklist-item input[type="checkbox"] {
+            width: 22px;
+            height: 22px;
+            margin-top: 4px;
+            cursor: pointer;
+            accent-color: #667eea;
+            flex-shrink: 0;
+        }
+        
+        .item-text {
+            flex: 1;
+        }
+        
+        .item-text h3 {
+            color: #0f172a;
+            font-size: 1.05rem;
+            margin-bottom: 6px;
+        }
+        
+        .item-text p, .item-text ol, .item-text ul {
+            color: #475569;
+            line-height: 1.6;
+            margin: 6px 0;
+            font-size: 0.95rem;
+        }
+        
+        .code-block {
+            background: #0b1220;
+            color: #e6eef8;
+            padding: 14px;
+            border-radius: 8px;
+            margin: 12px 0;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.88rem;
+            line-height: 1.45;
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+        
+        .note {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .note strong {
+            color: #92400e;
+        }
+        
+        .warning {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            padding: 12px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .warning strong {
+            color: #7f1d1d;
+        }
+        
+        .success {
+            background: #dcfce7;
+            border-left: 4px solid #22c55e;
+            padding: 12px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .success strong {
+            color: #166534;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            margin: 6px 6px 6px 0;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #566bdd;
+        }
+        
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid #e2e8f0;
+            color: #0f172a;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .image-placeholder {
+            background: #f1f5f9;
+            border: 2px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 24px;
+            text-align: center;
+            color: #64748b;
+            margin: 12px 0;
+        }
+        
+        footer {
+            padding: 18px 36px;
+            background: #fafafa;
+            border-top: 1px solid #eff2f7;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        footer .small {
+            color: #475569;
+            font-size: 0.9rem;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        /* Responsive tweaks */
+        @media (max-width: 900px) {
+            .method-card { height: auto; }
+            .stats { justify-content: center; }
+            .header h1 { font-size: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" role="main" aria-labelledby="main-title">
+        <header class="header">
+            <h1 id="main-title">🔌 Arduino R3 → HID Device</h1>
+            <p>Transform your Arduino Uno R3 into a native USB keyboard/mouse — step-by-step</p>
+
+            <div class="stats" aria-hidden="false">
+                <div class="stat-item" aria-live="polite">
+                    <div class="stat-number" id="completed-count">0</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+                <div class="stat-item" aria-live="polite">
+                    <div class="stat-number" id="total-count">0</div>
+                    <div class="stat-label">Total Steps</div>
+                </div>
+                <div class="stat-item" aria-live="polite">
+                    <div class="stat-number" id="progress-percent">0%</div>
+                    <div class="stat-label">Progress</div>
+                </div>
+            </div>
+
+            <div class="progress-bar" aria-hidden="false" title="Progress">
+                <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+            </div>
+        </header>
+        
+        <main class="content">
+            <h2 style="color: #0f172a; margin-bottom: 16px;">Choose Your Method:</h2>
+
+            <div class="method-selector" role="tablist" aria-label="Conversion methods">
+                <div class="method-card" role="tab" tabindex="0" id="method1-card" aria-controls="method1-content" onclick="selectMethod('method1')" onkeydown="cardKeydown(event, 'method1')">
+                    <div>
+                        <h3>Method 1: HIDman Firmware</h3>
+                        <span class="difficulty easy">EASY</span>
+                        <p>Flash the ATmega16U2 USB chip with HID firmware (replaces USB-serial with HID)</p>
+                        <ul>
+                            <li>✅ True USB HID device</li>
+                            <li>✅ No drivers needed</li>
+                            <li>✅ Works on Windows/Mac/Linux</li>
+                            <li>⚠️ Requires DFU mode and care</li>
+                            <li>⏱️ ~30 minutes</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="method-card" role="tab" tabindex="0" id="method2-card" aria-controls="method2-content" onclick="selectMethod('method2')" onkeydown="cardKeydown(event, 'method2')">
+                    <div>
+                        <h3>Method 2: Buy HID-Ready Board</h3>
+                        <span class="difficulty medium">EASIEST</span>
+                        <p>Use Arduino Leonardo, Pro Micro, or Digispark — native HID support</p>
+                        <ul>
+                            <li>✅ Native HID support</li>
+                            <li>✅ No firmware flashing</li>
+                            <li>✅ Plug & play</li>
+                            <li>💰 $5–25</li>
+                            <li>⏱️ ~10 minutes setup</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="method-card" role="tab" tabindex="0" id="method3-card" aria-controls="method3-content" onclick="selectMethod('method3')" onkeydown="cardKeydown(event, 'method3')">
+                    <div>
+                        <h3>Method 3: V-USB (Software USB)</h3>
+                        <span class="difficulty hard">ADVANCED</span>
+                        <p>Bit-bang USB protocol on ATmega pins using V-USB — software-only approach</p>
+                        <ul>
+                            <li>⚠️ Extra components & careful timing</li>
+                            <li>⚠️ More complex wiring and timing tuning</li>
+                            <li>✅ No change to 16U2</li>
+                            <li>⏱️ 2–3 hours for setup and testing</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Method 1: HIDman Firmware -->
+            <section id="method1-content" class="section" role="tabpanel" aria-hidden="true">
+                <h2>📦 Method 1: Flash HIDman Firmware to 16U2 Chip</h2>
+                
+                <div class="warning" role="alert">
+                    <strong>⚠️ Important:</strong> This will reprogram the USB-to-Serial chip on your Arduino. You will temporarily lose the serial upload path until you restore original firmware. Follow restore steps when finished.
+                </div>
+
+                <!-- Step 1 -->
+                <article class="checklist-item" data-method="method1" data-step="1" id="m1s1">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m1s1-label">
+                        <div class="item-text">
+                            <h3 id="m1s1-label">Step 1: Install DFU Programmer</h3>
+                            <p><strong>Windows:</strong> Use Atmel FLIP from Microchip for GUI flashing. Alternatively install <code>dfu-programmer</code> via package manager.</p>
+                            <div class="code-block"># Windows (Chocolatey)
+choco install dfu-programmer
+
+# Linux (Debian/Ubuntu)
+sudo apt update
+sudo apt install dfu-programmer</div>
+                            <div class="note">
+                                <strong>💡 Tip:</strong> If using FLIP, also install the USB drivers that come with it. On Windows you may need to accept unsigned drivers depending on your OS version.
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 2 -->
+                <article class="checklist-item" data-method="method1" data-step="2" id="m1s2">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m1s2-label">
+                        <div class="item-text">
+                            <h3 id="m1s2-label">Step 2: Download HID Firmware</h3>
+                            <p>Grab a reliable HID keyboard firmware binary (example names shown). Save the HEX file to a known folder:</p>
+                            <div class="code-block"># Example:
+Arduino-keyboard-0.3.hex
+# Save to:
+C:\Arduino\HID\Arduino-keyboard-0.3.hex</div>
+                            <p>Use only firmware you trust. Do not flash unknown binaries.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 3 -->
+                <article class="checklist-item" data-method="method1" data-step="3" id="m1s3">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m1s3-label">
+                        <div class="item-text">
+                            <h3 id="m1s3-label">Step 3: Put Arduino into DFU Mode</h3>
+                            <p>To enter DFU mode on the 16U2:</p>
+                            <ol>
+                                <li>Locate the 2×3 ICSP header next to the USB port (near the ATmega16U2).</li>
+                                <li>Short the two pins closest to the USB jack with a wire or paperclip while plugging in USB.</li>
+                                <li>The device should enumerate as an Atmel DFU device in Device Manager or <code>lsusb</code>.</li>
+                            </ol>
+                            <div class="image-placeholder">
+                                <p>📍 Look for the small 2×3 ICSP header near the USB connector. Bridge the two pins closest to the USB to enter DFU.</p>
+                            </div>
+                            <div class="note">
+                                <strong>💡 Alternative:</strong> Some Uno revs expose a HWB/HWB-like pad or button — the procedure is similar: hold while plugging in.
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 4 -->
+                <article class="checklist-item" data-method="method1" data-step="4" id="m1s4">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m1s4-label">
+                        <div class="item-text">
+                            <h3 id="m1s4-label">Step 4: Flash HID Firmware</h3>
+                            <p><strong>Using dfu-programmer (CLI):</strong></p>
+                            <div class="code-block"># Erase
+dfu-programmer atmega16u2 erase
+
+# Flash HID keyboard firmware
+dfu-programmer atmega16u2 flash Arduino-keyboard-0.3.hex
+
+# Reset to run
+dfu-programmer atmega16u2 reset</div>
+                            <p>Or use Atmel FLIP GUI to select ATmega16U2, load the HEX and run the programming sequence.</p>
+                            <div class="success"><strong>✅ Success:</strong> After re-plugging the board it should appear as a HID keyboard or "Arduino Leonardo"-type device.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 5 -->
+                <article class="checklist-item" data-method="method1" data-step="5" id="m1s5">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m1s5-label">
+                        <div class="item-text">
+                            <h3 id="m1s5-label">Step 5: Upload HID Sketch to ATmega328P</h3>
+                            <p>Because the USB-serial chip now acts as HID, you must use an ISP programmer or restore serial firmware temporarily to upload sketches to the main MCU.</p>
+                            <p><strong>Option A: Use an external ISP</strong> (recommended if you have one):</p>
+                            <ol>
+                                <li>Connect programmer to the 6-pin ICSP header on the Arduino.</li>
+                                <li>Upload via "Upload Using Programmer" in the Arduino IDE.</li>
+                            </ol>
+                            <p><strong>Option B: Temporarily restore serial firmware</strong> to upload over USB, then re-flash HID firmware.</p>
+                            <div class="code-block"># Example: restore serial firmware
+dfu-programmer atmega16u2 erase
+dfu-programmer atmega16u2 flash Arduino-usbserial-uno.hex
+dfu-programmer atmega16u2 reset
+
+# Upload your sketch via IDE, then re-flash HID firmware as shown above.</div>
+                            <div class="note"><strong>💡 Tip:</strong> Keep original firmware backup copy so you can quickly restore if needed.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 6 -->
+                <article class="checklist-item" data-method="method1" data-step="6" id="m1s6">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m1s6-label">
+                        <div class="item-text">
+                            <h3 id="m1s6-label">Step 6: Test HID Functionality</h3>
+                            <p>Open a plain text editor (Notepad/TextEdit). Send commands from ATmega328P (serial) which get forwarded as HID keystrokes by the 16U2.</p>
+                            <div class="note"><strong>Protocol:</strong> Simple ASCII commands work well — e.g. send "TYPE:Hello" to have the board type text.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 7 -->
+                <article class="checklist-item" data-method="method1" data-step="7" id="m1s7">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m1s7-label">
+                        <div class="item-text">
+                            <h3 id="m1s7-label">Step 7: Restore Original Firmware (Optional)</h3>
+                            <p>To restore normal Arduino USB-serial behavior:</p>
+                            <div class="code-block"># Restore official USB-serial firmware
+dfu-programmer atmega16u2 erase
+dfu-programmer atmega16u2 flash Arduino-usbserial-uno.hex
+dfu-programmer atmega16u2 reset</div>
+                            <p>After this your Uno will accept sketches over USB again.</p>
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+            <!-- Method 2: Buy HID Board -->
+            <section id="method2-content" class="section" role="tabpanel" aria-hidden="true">
+                <h2>🛒 Method 2: Buy a Native HID Arduino Board</h2>
+
+                <div class="success">
+                    <strong>✅ Recommended:</strong> For most users this is the fastest, safest, and most reliable option.
+                </div>
+
+                <!-- Step 1 -->
+                <article class="checklist-item" data-method="method2" data-step="1" id="m2s1">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m2s1-label">
+                        <div class="item-text">
+                            <h3 id="m2s1-label">Step 1: Choose Your Board</h3>
+                            <p><strong>Popular choices:</strong></p>
+                            <ul>
+                                <li><strong>Arduino Leonardo</strong> — full-featured, stable HID support.</li>
+                                <li><strong>Arduino Micro / Pro Micro</strong> — small, breadboard friendly.</li>
+                                <li><strong>Digispark (ATtiny85)</strong> — tiny and cheap for simple HID tasks.</li>
+                            </ul>
+                            <div class="note"><strong>💡 Recommendation:</strong> A Pro Micro clone (~$5–8) is great for keyboard/mouse tasks and inexpensive to replace.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 2 -->
+                <article class="checklist-item" data-method="method2" data-step="2" id="m2s2">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m2s2-label">
+                        <div class="item-text">
+                            <h3 id="m2s2-label">Step 2: Install Board Support</h3>
+                            <p>Make sure Arduino IDE supports your board:</p>
+                            <ul>
+                                <li>Leonardo/Micro: built into Arduino AVR Boards package.</li>
+                                <li>Pro Micro: install SparkFun or 3rd-party board package via Board Manager.</li>
+                                <li>Digispark: add Digistump URL to Additional Boards Manager URLs.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 3 -->
+                <article class="checklist-item" data-method="method2" data-step="3" id="m2s3">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m2s3-label">
+                        <div class="item-text">
+                            <h3 id="m2s3-label">Step 3: Upload Mouse & Keyboard Sketch</h3>
+                            <p>Here's a complete working example that listens on Serial and controls Mouse/Keyboard:</p>
+                            <div class="code-block">#include &lt;Mouse.h&gt;
+#include &lt;Keyboard.h&gt;
+
+String inputBuffer = "";
+
+void setup() {
+  Serial.begin(115200);
+  Mouse.begin();
+  Keyboard.begin();
+  while (!Serial) { ; }
+  Serial.println("READY");
+}
+
+void loop() {
+  while (Serial.available() > 0) {
+    char c = Serial.read();
+    if (c == '\n') {
+      processCommand(inputBuffer);
+      inputBuffer = "";
+    } else {
+      inputBuffer += c;
+    }
+  }
+}
+
+void processCommand(String cmd) {
+  cmd.trim();
+  int firstColon = cmd.indexOf(':');
+  if (firstColon == -1) return;
+  String action = cmd.substring(0, firstColon);
+  String params = cmd.substring(firstColon + 1);
+
+  if (action == "MOVE") {
+    int secondColon = params.indexOf(':');
+    if (secondColon != -1) {
+      int x = params.substring(0, secondColon).toInt();
+      int y = params.substring(secondColon + 1).toInt();
+      Mouse.move(x, y, 0);
+      Serial.println("OK:MOVED");
+    }
+  } else if (action == "CLICK") {
+    if (params == "L") Mouse.click(MOUSE_LEFT);
+    else if (params == "R") Mouse.click(MOUSE_RIGHT);
+    else if (params == "M") Mouse.click(MOUSE_MIDDLE);
+    Serial.println("OK:CLICKED");
+  } else if (action == "KEY") {
+    if (params.length() == 1) {
+      Keyboard.write(params[0]);
+    } else {
+      if (params == "ENTER") Keyboard.write(KEY_RETURN);
+      else if (params == "ESC") Keyboard.write(KEY_ESC);
+      else if (params == "TAB") Keyboard.write(KEY_TAB);
+      else if (params == "SPACE") Keyboard.write(' ');
+      else if (params == "BACKSPACE") Keyboard.write(KEY_BACKSPACE);
+    }
+    Serial.println("OK:KEY");
+  } else if (action == "TYPE") {
+    Keyboard.print(params);
+    Serial.println("OK:TYPED");
+  } else if (action == "PING") {
+    Serial.println("PONG");
+  }
+}</div>
+                            <div class="note"><strong>💡 Upload Settings:</strong> Select the correct board (e.g., Pro Micro) and port then upload normally. The board will expose HID APIs to sketches.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 4 -->
+                <article class="checklist-item" data-method="method2" data-step="4" id="m2s4">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m2s4-label">
+                        <div class="item-text">
+                            <h3 id="m2s4-label">Step 4: Test with Serial Monitor</h3>
+                            <p>Open Serial Monitor at 115200 baud and send these example commands:</p>
+                            <div class="code-block">PING
+MOVE:10:0
+MOVE:0:10
+CLICK:L
+TYPE:Hello World!
+KEY:ENTER</div>
+                            <div class="success"><strong>✅ Working:</strong> If mouse moves and text types, you're done!</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 5 -->
+                <article class="checklist-item" data-method="method2" data-step="5" id="m2s5">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m2s5-label">
+                        <div class="item-text">
+                            <h3 id="m2s5-label">Step 5: Add Human-Like Movement</h3>
+                            <p>Add smooth, human-like interpolated mouse movement to avoid jumpy motion:</p>
+                            <div class="code-block">// Add to top of sketch
+#include &lt;math.h&gt;
+
+// Smooth mouse move function
+void moveMouseSmooth(int targetX, int targetY) {
+  int steps = 20; // number of interpolation steps
+  for (int i = 1; i <= steps; ++i) {
+    float t = (float)i / (float)steps;
+    // ease-in-out cubic
+    float ease = t < 0.5 ? 4.0 * t * t * t : 1.0 - pow(-2.0 * t + 2.0, 3) / 2.0;
+    int stepX = round(targetX * ease) - round(targetX * ((float)(i-1)/steps < 0.5 ? 4.0 * pow(((float)(i-1)/steps),3) : 1.0 - pow(-2.0 * ((float)(i-1)/steps) + 2.0, 3) / 2.0));
+    int stepY = round(targetY * ease) - round(targetY * ((float)(i-1)/steps < 0.5 ? 4.0 * pow(((float)(i-1)/steps),3) : 1.0 - pow(-2.0 * ((float)(i-1)/steps) + 2.0, 3) / 2.0));
+    Mouse.move(stepX, stepY, 0);
+    delay(8); // small delay between steps
+  }
+}</div>
+                            <p>This produces smoother mouse motion by interpolating movement across multiple small steps.</p>
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+            <!-- Method 3: V-USB -->
+            <section id="method3-content" class="section" role="tabpanel" aria-hidden="true">
+                <h2>💻 Method 3: V-USB (Software USB) on AVR</h2>
+
+                <div class="warning"><strong>⚠️ Advanced:</strong> V-USB requires precise wiring, pull-up resistors, and careful timing. It's slower and more fragile than native USB or flashing the 16U2.</div>
+
+                <!-- Step 1 -->
+                <article class="checklist-item" data-method="method3" data-step="1" id="m3s1">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m3s1-label">
+                        <div class="item-text">
+                            <h3 id="m3s1-label">Step 1: Gather Parts</h3>
+                            <ul>
+                                <li>2 × 68Ω resistors (USB D+ / D-)</li>
+                                <li>1 × 3.6V zener diode (for D+ or D- clamp)</li>
+                                <li>Wires, soldering gear, breadboard</li>
+                                <li>ATmega328P running at 16MHz (required for V-USB timing)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 2 -->
+                <article class="checklist-item" data-method="method3" data-step="2" id="m3s2">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m3s2-label">
+                        <div class="item-text">
+                            <h3 id="m3s2-label">Step 2: Wire D+ / D- to AVR Pins</h3>
+                            <p>Follow V-USB wiring diagrams exactly — D+ and D- go to two digital pins with series resistors and zener clamp to protect the MCU.</p>
+                            <div class="image-placeholder">📷 Refer to the V-USB wiring diagram in official docs. Mistakes can damage hardware.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 3 -->
+                <article class="checklist-item" data-method="method3" data-step="3" id="m3s3">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m3s3-label">
+                        <div class="item-text">
+                            <h3 id="m3s3-label">Step 3: Use V-USB Library & Example</h3>
+                            <p>Install the V-USB library and compile example keyboard code. You may need to set fuses for 16MHz crystal operation.</p>
+                            <div class="code-block">// Example: basic V-USB HID (pseudo)
+// See V-USB examples for full source and makefile
+// This is a reference — use the library's files in your project.</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 4 -->
+                <article class="checklist-item" data-method="method3" data-step="4" id="m3s4">
+                    <div class="item-content">
+                        <input type="checkbox" aria-labelledby="m3s4-label">
+                        <div class="item-text">
+                            <h3 id="m3s4-label">Step 4: Test & Troubleshoot</h3>
+                            <p>V-USB debugging is iterative. Try simple descriptors and small payloads. Use a scope/logic analyzer if you have USB enumeration problems.</p>
+                            <div class="note">If enumeration fails, check clock source, resistors, and zener orientation first.</div>
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+        </main>
+
+        <footer>
+            <div class="small">Made with ❤️ — Arduino R3 HID Conversion Guide · Follow instructions carefully and backup original firmware.</div>
+            <div class="controls" aria-hidden="false">
+                <button class="btn btn-primary" id="btn-show-all" onclick="showAll()">Show All</button>
+                <button class="btn btn-ghost" id="btn-reset" onclick="resetProgress()">Reset Progress</button>
+                <button class="btn btn-ghost" id="btn-export" onclick="exportProgress()">Export Progress</button>
+                <button class="btn btn-ghost" id="btn-import" onclick="importProgress()">Import Progress</button>
+            </div>
+        </footer>
+    </div>
+<script>
+/*
+  Improved script for the "Arduino R3 → HID Device" page.
+  - Mobile-friendly modal with pagination (swipe, keyboard, buttons)
+  - Tapping a checklist item opens a modal showing step details (mobile-compatible)
+  - Pagination navigates through all steps for the currently selected method
+  - Preserves per-step completion in localStorage, export/import/reset features retained
+  - Accessibility: aria attributes, keyboard navigation, focus management
+
+  ------------------------------------------------------------------------------
+  GitHub Pages quick setup notes (paste these in your README or follow along):
+
+  If you want the URL: https://my-web-views.github.io/my-checklist/  (no "index.html" visible)
+  ------------------------------------------------------------------------------
+
+  OPTION A — Repository named <username>.github.io
+    1. Create a repo named: my-web-views.github.io (this is a "user/organization" site)
+    2. Create a folder "my-checklist" inside the repo
+    3. Put your index.html at path: /my-checklist/index.html
+    4. Commit & push to main (or default) branch.
+    5. Visit: https://my-web-views.github.io/my-checklist/  (browsers auto-serve index.html)
+
+  OPTION B — Repository named "my-checklist" (project site)
+    1. Create a repo named: my-checklist
+    2. Put index.html at the repository root (or in /docs)
+    3. In repo Settings → Pages, set source to branch: main (root) or main (/docs)
+    4. After GitHub publishes, your site will live at:
+       https://my-web-views.github.io/my-checklist/  (again the server serves index.html automatically)
+    5. You never need to type "index.html" — the server returns index.html by default.
+
+  Notes:
+    - The visible "index.html" extension is not required in the URL if a default document (index.html)
+      exists at the requested path. Browsers will request /my-checklist/ and the server returns index.html.
+    - If you previously tried /my-web-views.github.io/my-checklist/index.html and it worked,
+      then simply visiting /my-web-views.github.io/my-checklist/ will work too once the page is published.
+    - If your repository is named exactly `my-web-views.github.io` you get a site at the root:
+      https://my-web-views.github.io/  — Foldered pages are available under that root.
+  ------------------------------------------------------------------------------
+
+  Paste this entire <script> into your page (it assumes the DOM elements from the provided HTML exist).
+*/
+
+(function () {
+  const methods = ['method1', 'method2', 'method3'];
+
+  // DOM refs
+  const totalCountEl = document.getElementById('total-count');
+  const completedCountEl = document.getElementById('completed-count');
+  const progressPercentEl = document.getElementById('progress-percent');
+  const progressFillEl = document.getElementById('progress-fill');
+
+  // Modal related
+  let modal = null;
+  let modalDialog = null;
+  let modalHeader = null;
+  let modalBody = null;
+  let modalFooter = null;
+  let currentModalIndex = 0;
+  let currentModalList = []; // array of checklist-item elements
+
+  // Utility selectors
+  function itemsFor(method) {
+    return Array.from(document.querySelectorAll('.checklist-item[data-method="' + method + '"]'));
+  }
+
+  // Load and apply checkbox state from localStorage
+  function loadCheckboxState() {
+    const all = document.querySelectorAll('.checklist-item');
+    all.forEach(item => {
+      const id = item.id || item.dataset.key || generateIdForItem(item);
+      if (!item.id) item.id = id;
+      const checkbox = item.querySelector('input[type="checkbox"]');
+      const saved = localStorage.getItem('hid_completed_' + id);
+      if (saved === 'true') {
+        checkbox.checked = true;
+        item.classList.add('completed');
+        checkbox.setAttribute('aria-checked', 'true');
+      } else {
+        checkbox.checked = false;
+        item.classList.remove('completed');
+        checkbox.setAttribute('aria-checked', 'false');
+      }
+    });
+  }
+
+  function saveItemState(item) {
+    const id = item.id;
+    const checkbox = item.querySelector('input[type="checkbox"]');
+    localStorage.setItem('hid_completed_' + id, checkbox.checked ? 'true' : 'false');
+    checkbox.setAttribute('aria-checked', checkbox.checked ? 'true' : 'false');
+  }
+
+  // Build a deterministic id if none exists
+  function generateIdForItem(item) {
+    // Use method + step or fallback to random short string
+    const method = item.dataset.method || 'm';
+    const step = item.dataset.step || Math.random().toString(36).slice(2, 8);
+    return `${method}-step-${step}`;
+  }
+
+  function updateStats() {
+    const methodItems = itemsFor(currentMethod());
+    const total = methodItems.length;
+    const completed = methodItems.filter(it => it.querySelector('input[type="checkbox"]').checked).length;
+    const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+    totalCountEl.textContent = total;
+    completedCountEl.textContent = completed;
+    progressPercentEl.textContent = percent + '%';
+    if (progressFillEl) progressFillEl.style.width = percent + '%';
+  }
+
+  // Manage method selection UI
+  function currentMethod() {
+    return localStorage.getItem('hid_current_method') || 'method2';
+  }
+
+  function setCurrentMethod(method) {
+    if (!methods.includes(method)) return;
+    localStorage.setItem('hid_current_method', method);
+    methods.forEach(m => {
+      const card = document.getElementById(m + '-card');
+      const section = document.getElementById(m + '-content');
+      if (!card || !section) return;
+      if (m === method) {
+        card.classList.add('selected');
+        card.setAttribute('aria-selected', 'true');
+        section.classList.add('active');
+        section.setAttribute('aria-hidden', 'false');
+      } else {
+        card.classList.remove('selected');
+        card.setAttribute('aria-selected', 'false');
+        section.classList.remove('active');
+        section.setAttribute('aria-hidden', 'true');
+      }
+    });
+    // Update stats for selected method
+    updateStats();
+  }
+
+  // Attach handlers for method cards
+  function attachMethodCardHandlers() {
+    methods.forEach(m => {
+      const card = document.getElementById(m + '-card');
+      if (!card) return;
+      card.addEventListener('click', () => setCurrentMethod(m));
+      card.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          setCurrentMethod(m);
+        } else if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') {
+          const idx = methods.indexOf(m);
+          const next = methods[(idx + 1) % methods.length];
+          const nextCard = document.getElementById(next + '-card');
+          if (nextCard) nextCard.focus();
+        } else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') {
+          const idx = methods.indexOf(m);
+          const prev = methods[(idx - 1 + methods.length) % methods.length];
+          const prevCard = document.getElementById(prev + '-card');
+          if (prevCard) prevCard.focus();
+        }
+      });
+    });
+  }
+
+  // Setup modal DOM (create once)
+  function ensureModalExists() {
+    if (modal) return;
+    modal = document.createElement('div');
+    modal.id = 'hid-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('tabindex', '-1');
+    // overlay
+    modal.style.position = 'fixed';
+    modal.style.inset = '0';
+    modal.style.display = 'none';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '9999';
+    modal.style.background = 'rgba(2,6,23,0.6)';
+
+    // dialog
+    modalDialog = document.createElement('div');
+    modalDialog.setAttribute('role', 'document');
+    modalDialog.style.width = 'min(960px, calc(100% - 24px))';
+    modalDialog.style.maxWidth = '960px';
+    modalDialog.style.height = 'min(80vh, 900px)';
+    modalDialog.style.background = '#fff';
+    modalDialog.style.borderRadius = '12px';
+    modalDialog.style.boxShadow = '0 20px 60px rgba(2,6,23,0.5)';
+    modalDialog.style.overflow = 'hidden';
+    modalDialog.style.display = 'flex';
+    modalDialog.style.flexDirection = 'column';
+    modalDialog.style.touchAction = 'pan-y';
+    // For mobile - ensure spacing from edges and comfortable scrolling within dialog
+    modalDialog.style.maxHeight = 'calc(100vh - 48px)';
+    modalDialog.style.width = 'calc(100% - 32px)';
+
+    // header
+    modalHeader = document.createElement('div');
+    modalHeader.style.padding = '12px 16px';
+    modalHeader.style.display = 'flex';
+    modalHeader.style.alignItems = 'center';
+    modalHeader.style.justifyContent = 'space-between';
+    modalHeader.style.borderBottom = '1px solid #eef2f7';
+    modalHeader.style.background = '#fbfdff';
+
+    const title = document.createElement('div');
+    title.id = 'hid-modal-title';
+    title.style.fontWeight = '700';
+    title.style.fontSize = '1rem';
+    title.style.color = '#0f172a';
+    title.textContent = 'Step';
+
+    // pagination / index display
+    const indexDisplay = document.createElement('div');
+    indexDisplay.id = 'hid-modal-index';
+    indexDisplay.style.fontSize = '0.95rem';
+    indexDisplay.style.color = '#475569';
+    indexDisplay.setAttribute('aria-live', 'polite');
+    indexDisplay.textContent = '';
+
+    const headerLeft = document.createElement('div');
+    headerLeft.style.display = 'flex';
+    headerLeft.style.flexDirection = 'column';
+    headerLeft.appendChild(title);
+    headerLeft.appendChild(indexDisplay);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.innerHTML = '✕';
+    closeBtn.style.border = 'none';
+    closeBtn.style.background = 'transparent';
+    closeBtn.style.fontSize = '1.1rem';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.padding = '6px';
+    closeBtn.style.marginLeft = '8px';
+    closeBtn.addEventListener('click', closeModal);
+
+    modalHeader.appendChild(headerLeft);
+    modalHeader.appendChild(closeBtn);
+
+    // body
+    modalBody = document.createElement('div');
+    modalBody.style.padding = '12px 16px';
+    modalBody.style.overflowY = 'auto';
+    modalBody.style.flex = '1 1 auto';
+    modalBody.style.webkitOverflowScrolling = 'touch';
+    modalBody.id = 'hid-modal-body';
+
+    // footer / controls
+    modalFooter = document.createElement('div');
+    modalFooter.style.padding = '10px 12px';
+    modalFooter.style.display = 'flex';
+    modalFooter.style.alignItems = 'center';
+    modalFooter.style.justifyContent = 'space-between';
+    modalFooter.style.borderTop = '1px solid #eef2f7';
+    modalFooter.style.background = '#fbfdff';
+
+    // left side: prev/next
+    const navLeft = document.createElement('div');
+    navLeft.style.display = 'flex';
+    navLeft.style.gap = '8px';
+    navLeft.style.alignItems = 'center';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.id = 'hid-modal-prev';
+    prevBtn.className = 'btn';
+    prevBtn.style.padding = '8px 12px';
+    prevBtn.style.borderRadius = '8px';
+    prevBtn.style.border = '1px solid #e6eef8';
+    prevBtn.style.background = '#fff';
+    prevBtn.style.cursor = 'pointer';
+    prevBtn.textContent = '← Prev';
+    prevBtn.addEventListener('click', showPrevInModal);
+    prevBtn.addEventListener('touchstart', function (e) { e.preventDefault(); showPrevInModal(); });
+
+    const nextBtn = document.createElement('button');
+    nextBtn.id = 'hid-modal-next';
+    nextBtn.className = 'btn btn-primary';
+    nextBtn.style.padding = '8px 12px';
+    nextBtn.style.borderRadius = '8px';
+    nextBtn.style.border = 'none';
+    nextBtn.style.background = '#667eea';
+    nextBtn.style.color = '#fff';
+    nextBtn.style.cursor = 'pointer';
+    nextBtn.textContent = 'Next →';
+    nextBtn.addEventListener('click', showNextInModal);
+    nextBtn.addEventListener('touchstart', function (e) { e.preventDefault(); showNextInModal(); });
+
+    navLeft.appendChild(prevBtn);
+    navLeft.appendChild(nextBtn);
+
+    // right side: action buttons (toggle complete/export)
+    const actionsRight = document.createElement('div');
+    actionsRight.style.display = 'flex';
+    actionsRight.style.gap = '8px';
+    actionsRight.style.alignItems = 'center';
+
+    const toggleCompleteBtn = document.createElement('button');
+    toggleCompleteBtn.id = 'hid-modal-toggle-complete';
+    toggleCompleteBtn.className = 'btn btn-ghost';
+    toggleCompleteBtn.style.border = '1px solid #e6eef8';
+    toggleCompleteBtn.style.background = '#fff';
+    toggleCompleteBtn.textContent = 'Mark Done';
+    toggleCompleteBtn.addEventListener('click', toggleCompleteForCurrentModalItem);
+
+    actionsRight.appendChild(toggleCompleteBtn);
+
+    modalFooter.appendChild(navLeft);
+    modalFooter.appendChild(actionsRight);
+
+    modalDialog.appendChild(modalHeader);
+    modalDialog.appendChild(modalBody);
+    modalDialog.appendChild(modalFooter);
+    modal.appendChild(modalDialog);
+    document.body.appendChild(modal);
+
+    // close on overlay click (but not when clicking inside dialog)
+    modal.addEventListener('click', function (ev) {
+      if (ev.target === modal) closeModal();
+    });
+
+    // keyboard support
+    window.addEventListener('keydown', function (ev) {
+      if (!modal || modal.style.display !== 'flex') return;
+      if (ev.key === 'Escape') {
+        closeModal();
+      } else if (ev.key === 'ArrowRight') {
+        showNextInModal();
+      } else if (ev.key === 'ArrowLeft') {
+        showPrevInModal();
+      }
+    });
+
+    // swipe support for mobile
+    let touchStartX = 0;
+    let touchStartY = 0;
+    modalBody.addEventListener('touchstart', function (e) {
+      if (e.touches && e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    modalBody.addEventListener('touchend', function (e) {
+      if (!e.changedTouches || e.changedTouches.length === 0) return;
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+        if (dx < 0) showNextInModal();
+        else showPrevInModal();
+      }
+    });
+  }
+
+  function closeModal() {
+    if (!modal) return;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+    // Return focus to the currently selected method card or document
+    const method = currentMethod();
+    const card = document.getElementById(method + '-card');
+    if (card) card.focus();
+  }
+
+  function openModalForItem(item) {
+    ensureModalExists();
+    // Build list of items for the active method
+    const method = item.dataset.method;
+    const list = itemsFor(method);
+    currentModalList = list;
+    // find index
+    const idx = list.indexOf(item);
+    currentModalIndex = idx === -1 ? 0 : idx;
+    renderModalForIndex(currentModalIndex);
+    // show modal
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+    // focus first interactive element inside modal
+    const focusableWithin = modalDialog.querySelector('button, a, input, textarea, [tabindex]:not([tabindex="-1"])');
+    if (focusableWithin) focusableWithin.focus();
+  }
+
+  function renderModalForIndex(idx) {
+    if (!currentModalList || currentModalList.length === 0) return;
+    idx = ((idx % currentModalList.length) + currentModalList.length) % currentModalList.length; // wrap
+    currentModalIndex = idx;
+    const item = currentModalList[idx];
+    const titleEl = modalHeader.querySelector('#hid-modal-title');
+    const indexDisplay = modalHeader.querySelector('#hid-modal-index');
+
+    // create content snapshot from the checklist item
+    const heading = item.querySelector('.item-text h3') ? item.querySelector('.item-text h3').innerText : 'Step';
+    const bodyNode = item.querySelector('.item-text').cloneNode(true);
+
+    // Update header
+    titleEl.textContent = heading;
+    indexDisplay.textContent = `Step ${idx + 1} of ${currentModalList.length}`;
+
+    // Replace modal body content
+    modalBody.innerHTML = ''; // clear
+    // Append the cloned content, but remove interactive inputs from clone to avoid duplication
+    const clonedCheckbox = bodyNode.querySelector('input[type="checkbox"]');
+    if (clonedCheckbox) clonedCheckbox.remove();
+    // Make code-blocks scrollable and selectable on mobile
+    const codeBlocks = bodyNode.querySelectorAll('.code-block');
+    codeBlocks.forEach(cb => {
+      cb.style.maxHeight = '40vh';
+      cb.style.overflow = 'auto';
+      cb.style.webkitOverflowScrolling = 'touch';
+      cb.style.whiteSpace = 'pre-wrap';
+      cb.style.wordWrap = 'break-word';
+      cb.setAttribute('tabindex', '0'); // allow focusing
+    });
+
+    // adjust lists for readability
+    const lists = bodyNode.querySelectorAll('ul, ol');
+    lists.forEach(l => {
+      l.style.paddingLeft = '18px';
+      l.style.marginBottom = '8px';
+    });
+
+    // append a small footer note to modal body
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.gap = '8px';
+    wrapper.appendChild(bodyNode);
+
+    // append to modal
+    modalBody.appendChild(wrapper);
+
+    // Update toggle complete button label based on current state
+    const toggleBtn = document.getElementById('hid-modal-toggle-complete');
+    if (toggleBtn) {
+      const checkbox = item.querySelector('input[type="checkbox"]');
+      toggleBtn.textContent = checkbox && checkbox.checked ? 'Mark Undone' : 'Mark Done';
+    }
+  }
+
+  function showNextInModal() {
+    if (!currentModalList || currentModalList.length === 0) return;
+    renderModalForIndex(currentModalIndex + 1);
+  }
+
+  function showPrevInModal() {
+    if (!currentModalList || currentModalList.length === 0) return;
+    renderModalForIndex(currentModalIndex - 1);
+  }
+
+  function toggleCompleteForCurrentModalItem() {
+    if (!currentModalList || currentModalList.length === 0) return;
+    const item = currentModalList[currentModalIndex];
+    const checkbox = item.querySelector('input[type="checkbox"]');
+    if (checkbox) {
+      checkbox.checked = !checkbox.checked;
+      checkbox.dispatchEvent(new Event('change'));
+      // Update toggle button label
+      const toggleBtn = document.getElementById('hid-modal-toggle-complete');
+      if (toggleBtn) toggleBtn.textContent = checkbox.checked ? 'Mark Undone' : 'Mark Done';
+    }
+  }
+
+  // Attach checkbox and item tap handlers:
+  function attachChecklistHandlers() {
+    const all = document.querySelectorAll('.checklist-item');
+    all.forEach(item => {
+      // ensure id exists
+      if (!item.id) item.id = generateIdForItem(item);
+
+      const checkbox = item.querySelector('input[type="checkbox"]');
+      if (checkbox) {
+        // ARIA
+        checkbox.setAttribute('role', 'checkbox');
+        checkbox.setAttribute('aria-checked', checkbox.checked ? 'true' : 'false');
+
+        checkbox.addEventListener('change', function () {
+          if (checkbox.checked) item.classList.add('completed');
+          else item.classList.remove('completed');
+          saveItemState(item);
+          updateStats();
+        });
+
+        // prevent the item click from toggling when we explicitly touch the checkbox
+        checkbox.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+        });
+      }
+
+      // For the item itself: on click or tap, open modal with that step
+      // We avoid opening modal when clicking inside a code-block, link, or button.
+      function itemActivateHandler(ev) {
+        // ignore if click/tap originated on interactive child (checkbox, button, code block, link)
+        const prohibited = ev.target.closest('input[type="checkbox"], button, a, .code-block, pre, textarea');
+        if (prohibited) return;
+        ev.preventDefault();
+        openModalForItem(item);
+      }
+
+      // Use both click and touchend so mobile taps are responsive
+      item.addEventListener('click', itemActivateHandler);
+      item.addEventListener('touchend', function (ev) {
+        // allow slight delay for double-tap or scroll; avoid triggering when the user is scrolling
+        // detect if it's a quick tap (short touch)
+        if (ev.changedTouches && ev.changedTouches.length === 1) {
+          // find touch target
+          const touch = ev.changedTouches[0];
+          const target = document.elementFromPoint(touch.clientX, touch.clientY);
+          // if the target is inside interactive content, ignore
+          if (target && (target.closest('.code-block') || target.tagName === 'A' || target.closest('button') || target.closest('input'))) return;
+          itemActivateHandler(ev);
+        }
+      }, { passive: true });
+
+      // Improve accessibility: allow Enter to open modal when item is focused
+      item.setAttribute('tabindex', '0');
+      item.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          openModalForItem(item);
+        }
+      });
+    });
+  }
+
+  // Reset all progress (clears stored flags)
+  window.resetProgress = function () {
+    if (!confirm('Reset saved progress for ALL steps?')) return;
+    const all = document.querySelectorAll('.checklist-item');
+    all.forEach(item => {
+      const checkbox = item.querySelector('input[type="checkbox"]');
+      if (checkbox) {
+        checkbox.checked = false;
+        item.classList.remove('completed');
+        saveItemState(item);
+      }
+    });
+    updateStats();
+    if (modal) renderModalForIndex(currentModalIndex);
+  };
+
+  // Export progress (downloads JSON)
+  window.exportProgress = function () {
+    const all = document.querySelectorAll('.checklist-item');
+    const data = {};
+    all.forEach(item => {
+      const id = item.id;
+      const checkbox = item.querySelector('input[type="checkbox"]');
+      data[id] = !!(checkbox && checkbox.checked);
+    });
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      currentMethod: currentMethod(),
+      progress: data
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'arduino-hid-progress.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  // Import progress (prompt for JSON)
+  window.importProgress = function () {
+    const text = prompt('Paste exported progress JSON here:');
+    if (!text) return;
+    try {
+      const obj = JSON.parse(text);
+      if (!obj || !obj.progress) throw new Error('Invalid format: missing "progress" key');
+      const progress = obj.progress;
+      Object.keys(progress).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          const checkbox = el.querySelector('input[type="checkbox"]');
+          if (checkbox) {
+            checkbox.checked = !!progress[id];
+            if (checkbox.checked) el.classList.add('completed'); else el.classList.remove('completed');
+            saveItemState(el);
+          }
+        }
+      });
+      if (obj.currentMethod && methods.includes(obj.currentMethod)) {
+        setCurrentMethod(obj.currentMethod);
+      }
+      updateStats();
+      alert('Progress imported successfully.');
+    } catch (e) {
+      alert('Failed to import progress: ' + (e.message || e));
+    }
+  };
+
+  // "Show All" toggles showing every section (useful for mobile reference)
+  window.showAll = function () {
+    // If any section is hidden, show all; otherwise collapse to current method
+    const anyHidden = methods.some(m => !document.getElementById(m + '-content').classList.contains('active'));
+    if (anyHidden) {
+      methods.forEach(m => {
+        const section = document.getElementById(m + '-content');
+        const card = document.getElementById(m + '-card');
+        if (section) {
+          section.classList.add('active');
+          section.setAttribute('aria-hidden', 'false');
+        }
+        if (card) card.classList.add('selected');
+      });
+      // stats show global totals
+      const all = document.querySelectorAll('.checklist-item');
+      totalCountEl.textContent = all.length;
+      const completed = Array.from(all).filter(it => it.querySelector('input[type="checkbox"]').checked).length;
+      completedCountEl.textContent = completed;
+      const percent = all.length === 0 ? 0 : Math.round((completed / all.length) * 100);
+      progressPercentEl.textContent = percent + '%';
+      if (progressFillEl) progressFillEl.style.width = percent + '%';
+    } else {
+      // collapse back to stored current method
+      setCurrentMethod(currentMethod());
+    }
+  };
+
+  // Initialization
+  function init() {
+    attachMethodCardHandlers();
+    attachChecklistHandlers();
+    loadCheckboxState();
+
+    // ensure current method section visible
+    const method = currentMethod();
+    if (!methods.includes(method)) localStorage.setItem('hid_current_method', 'method2');
+    setCurrentMethod(localStorage.getItem('hid_current_method') || 'method2');
+
+    // Ensure export/import/reset/showAll buttons exist (they do in footer) and reattach their events if necessary
+    const btnExport = document.getElementById('btn-export');
+    const btnImport = document.getElementById('btn-import');
+    const btnReset = document.getElementById('btn-reset');
+    const btnShowAll = document.getElementById('btn-show-all');
+
+    if (btnExport) btnExport.addEventListener('click', window.exportProgress);
+    if (btnImport) btnImport.addEventListener('click', window.importProgress);
+    if (btnReset) btnReset.addEventListener('click', window.resetProgress);
+    if (btnShowAll) btnShowAll.addEventListener('click', window.showAll);
+
+    // Recalculate stats for the selected method
+    updateStats();
+  }
+
+  // Wait for DOMContentLoaded if necessary
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
